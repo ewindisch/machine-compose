@@ -1,0 +1,49 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+	create)
+		. $2/machine.env
+		MACHINE_NAME=$2
+		if [ -z "$MACHINE_DRIVER" ] || [ -z "$MACHINE_NAME" ] ; then
+			echo "Machine driver or name not specified." >&2
+			exit 1
+		fi
+		CMD="docker-machine create -d $MACHINE_DRIVER"
+		[ -n "$MACHINE_GENERIC_IP_ADDRESS" ] &&
+			CMD="$CMD --generic-ip-address $MACHINE_GENERIC_IP_ADDRESS"
+		$CMD $MACHINE_NAME
+		;;
+	rm)
+		. $2/machine.env
+		MACHINE_NAME=$2
+		if [ -z "$MACHINE_NAME" ] ; then
+			echo "Machine driver or name not specified." >&2
+			exit 1
+		fi
+		docker-machine rm $MACHINE_NAME
+		;;
+	up)
+		. $2/machine.env
+		MACHINE_NAME=$2
+		if [ -z "$MACHINE_NAME" ] ; then
+			echo "Machine driver or name not specified." >&2
+			exit 1
+		fi
+		docker-machine ls | grep "^$MACHINE_NAME\s" ||
+			$0 create $MACHINE_NAME
+		(eval $(docker-machine env $MACHINE_NAME)
+			docker-compose -f $MACHINE_NAME/docker-compose.yml up)
+		;;
+	*)
+cat <<EOF
+Usage:
+$0 <cmd> [args...]
+
+Commands:
+	create <machine-name>		# Create machine
+	rm <machine-name>		# Remove machine
+	up <machine-name>		# Bring up docker-compose
+EOF
+	;;
+esac
